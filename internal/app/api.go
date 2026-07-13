@@ -11,6 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/justcipunz/rate-notifier-backend/internal/config"
+	"github.com/justcipunz/rate-notifier-backend/internal/migrations"
 )
 
 type APIServer struct {
@@ -30,6 +31,10 @@ func NewAPI(cfg config.Config, logger *log.Logger, db *pgxpool.Pool) *APIServer 
 func (s *APIServer) Run(ctx context.Context) error {
 	defer s.db.Close()
 
+	if err := migrations.Run(ctx, s.db); err != nil {
+		return err
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 
@@ -42,6 +47,7 @@ func (s *APIServer) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
 	go func() {
 		s.logger.Printf("database connected")
+		s.logger.Printf("migrations completed")
 		s.logger.Printf("http server started on :%s", s.cfg.AppPort)
 		errCh <- server.ListenAndServe()
 	}()
