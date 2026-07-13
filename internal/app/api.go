@@ -9,22 +9,27 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/justcipunz/rate-notifier-backend/internal/config"
 )
 
 type APIServer struct {
 	cfg    config.Config
 	logger *log.Logger
+	db     *pgxpool.Pool
 }
 
-func NewAPI(cfg config.Config, logger *log.Logger) *APIServer {
+func NewAPI(cfg config.Config, logger *log.Logger, db *pgxpool.Pool) *APIServer {
 	return &APIServer{
 		cfg:    cfg,
 		logger: logger,
+		db:     db,
 	}
 }
 
 func (s *APIServer) Run(ctx context.Context) error {
+	defer s.db.Close()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler)
 
@@ -36,6 +41,7 @@ func (s *APIServer) Run(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	go func() {
+		s.logger.Printf("database connected")
 		s.logger.Printf("http server started on :%s", s.cfg.AppPort)
 		errCh <- server.ListenAndServe()
 	}()

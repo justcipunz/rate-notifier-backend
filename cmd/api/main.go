@@ -8,6 +8,7 @@ import (
 
 	"github.com/justcipunz/rate-notifier-backend/internal/app"
 	"github.com/justcipunz/rate-notifier-backend/internal/config"
+	"github.com/justcipunz/rate-notifier-backend/internal/db"
 	"github.com/justcipunz/rate-notifier-backend/internal/logger"
 )
 
@@ -19,7 +20,12 @@ func main() {
 
 	lg := logger.New("api")
 
-	server := app.NewAPI(cfg, lg)
+	pool, err := db.Connect(context.Background(), cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server := app.NewAPI(cfg, lg, pool)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
