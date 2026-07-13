@@ -47,6 +47,8 @@ func (s *APIServer) Run(ctx context.Context) error {
 	mux.HandleFunc("/api/v1/auth/login", s.handleLogin)
 	mux.HandleFunc("/api/v1/rates", s.handleRates)
 	mux.Handle("/api/v1/users/me", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleMe)))
+	mux.Handle("/api/v1/targets", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleTargets)))
+	mux.Handle("/api/v1/targets/{id}", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleTargetByID)))
 	mux.HandleFunc("/health", healthHandler)
 
 	server := &http.Server{
