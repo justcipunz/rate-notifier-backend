@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/justcipunz/rate-notifier-backend/internal/models"
 )
 
@@ -19,6 +20,10 @@ RETURNING id, email, password_hash, created_at`,
 		email, passwordHash,
 	).Scan(&user.ID, &user.Email, &user.PasswordHash, &user.CreatedAt)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return models.User{}, ErrEmailExists
+		}
 		return models.User{}, fmt.Errorf("create user: %w", err)
 	}
 

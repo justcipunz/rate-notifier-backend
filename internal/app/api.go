@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -10,14 +9,20 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/justcipunz/rate-notifier-backend/internal/auth"
 	"github.com/justcipunz/rate-notifier-backend/internal/config"
+	"github.com/justcipunz/rate-notifier-backend/internal/httpx"
+	"github.com/justcipunz/rate-notifier-backend/internal/middleware"
 	"github.com/justcipunz/rate-notifier-backend/internal/migrations"
+	"github.com/justcipunz/rate-notifier-backend/internal/storage"
 )
 
 type APIServer struct {
 	cfg    config.Config
 	logger *log.Logger
 	db     *pgxpool.Pool
+	store  *storage.Store
+	tokens *auth.TokenManager
 }
 
 func NewAPI(cfg config.Config, logger *log.Logger, db *pgxpool.Pool) *APIServer {
@@ -25,6 +30,8 @@ func NewAPI(cfg config.Config, logger *log.Logger, db *pgxpool.Pool) *APIServer 
 		cfg:    cfg,
 		logger: logger,
 		db:     db,
+		store:  storage.New(db),
+		tokens: auth.NewTokenManager(cfg.JWTSecret, cfg.JWTTTL),
 	}
 }
 
@@ -36,6 +43,9 @@ func (s *APIServer) Run(ctx context.Context) error {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/auth/register", s.handleRegister)
+	mux.HandleFunc("/api/v1/auth/login", s.handleLogin)
+	mux.Handle("/api/v1/users/me", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleMe)))
 	mux.HandleFunc("/health", healthHandler)
 
 	server := &http.Server{
@@ -70,12 +80,11 @@ func (s *APIServer) Run(ctx context.Context) error {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{
 		"status": "ok",
 	})
 }
