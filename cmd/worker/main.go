@@ -1,0 +1,27 @@
+package main
+
+import (
+	"context"
+	"log"
+	"os/signal"
+	"syscall"
+
+	"github.com/justcipunz/rate-notifier-backend/internal/app"
+	"github.com/justcipunz/rate-notifier-backend/internal/config"
+	"github.com/justcipunz/rate-notifier-backend/internal/logger"
+)
+
+func main() {
+	cfg := config.Load()
+	lg := logger.New("worker")
+
+	worker := app.NewWorker(cfg, lg)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	if err := worker.Run(ctx); err != nil {
+		lg.Printf("worker stopped with error: %v", err)
+		log.Fatal(err)
+	}
+}
