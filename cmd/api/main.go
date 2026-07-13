@@ -12,7 +12,11 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	lg := logger.New("api")
 
 	server := app.NewAPI(cfg, lg)
