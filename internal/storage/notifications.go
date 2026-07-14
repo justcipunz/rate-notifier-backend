@@ -95,6 +95,33 @@ RETURNING id, user_id, target_id, currency, target_value, actual_value, conditio
 	return n, nil
 }
 
+func (s *Store) MarkNotificationReadByUser(ctx context.Context, userID, id int64) (models.Notification, error) {
+	var (
+		n         models.Notification
+		targetID  sql.NullInt64
+		createdAt time.Time
+	)
+
+	err := s.pool.QueryRow(ctx, `
+UPDATE notifications
+SET is_read = TRUE
+WHERE id = $1 AND user_id = $2
+RETURNING id, user_id, target_id, currency, target_value, actual_value, condition, is_read, created_at`,
+		id, userID,
+	).Scan(&n.ID, &n.UserID, &targetID, &n.Currency, &n.TargetValue, &n.ActualValue, &n.Condition, &n.IsRead, &createdAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Notification{}, ErrNotFound
+		}
+		return models.Notification{}, fmt.Errorf("mark notification read by user: %w", err)
+	}
+
+	n.TargetID = nullIntPtr(targetID)
+	n.CreatedAt = createdAt
+
+	return n, nil
+}
+
 func nullIntPtr(v sql.NullInt64) *int64 {
 	if !v.Valid {
 		return nil
