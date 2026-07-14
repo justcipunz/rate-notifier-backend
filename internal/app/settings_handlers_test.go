@@ -16,14 +16,17 @@ import (
 )
 
 type fakeSettingsStore struct {
-	getSettings  models.UserSettings
-	getErr       error
-	updateErr    error
-	updateCalled bool
-	updateValue  bool
-	updateUserID int64
-	getCalled    bool
-	getUserID    int64
+	getSettings   models.UserSettings
+	getErr        error
+	updateErr     error
+	updateCalled  bool
+	updateValue   bool
+	updateUserID  int64
+	getCalled     bool
+	getUserID     int64
+	getUser       models.User
+	getUserErr    error
+	getUserCalled bool
 }
 
 func (f *fakeSettingsStore) CreateUser(ctx context.Context, email, passwordHash string) (models.User, error) {
@@ -35,7 +38,9 @@ func (f *fakeSettingsStore) GetUserByEmail(ctx context.Context, email string) (m
 }
 
 func (f *fakeSettingsStore) GetUserByID(ctx context.Context, id int64) (models.User, error) {
-	panic("unused")
+	f.getUserCalled = true
+	f.getUserID = id
+	return f.getUser, f.getUserErr
 }
 
 func (f *fakeSettingsStore) ListRates(ctx context.Context) ([]models.Rate, error) {

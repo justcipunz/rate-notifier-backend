@@ -147,6 +147,10 @@ func (s *APIServer) handleMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.store.GetUserByID(r.Context(), principal.ID)
 	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+			return
+		}
 		s.logInternal("get current user: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
