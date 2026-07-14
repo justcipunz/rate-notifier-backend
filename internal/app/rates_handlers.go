@@ -27,7 +27,7 @@ func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 
 	rates, err := s.store.ListRates(r.Context())
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
@@ -52,11 +52,11 @@ func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 func currencyName(code string) string {
 	switch code {
 	case "USD":
-		return "Доллар США"
+		return "US Dollar"
 	case "EUR":
-		return "Евро"
+		return "Euro"
 	case "CNY":
-		return "Китайский юань"
+		return "Chinese Yuan"
 	default:
 		return code
 	}

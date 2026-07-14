@@ -35,7 +35,7 @@ type notificationReadResponse struct {
 func (s *APIServer) handleNotifications(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
 		return
 	}
 
@@ -46,7 +46,7 @@ func (s *APIServer) handleNotifications(w http.ResponseWriter, r *http.Request) 
 
 	notifications, err := s.store.ListNotificationsByUser(r.Context(), principal.ID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
@@ -56,7 +56,7 @@ func (s *APIServer) handleNotifications(w http.ResponseWriter, r *http.Request) 
 func (s *APIServer) handleNotificationRead(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
 		return
 	}
 
@@ -67,17 +67,17 @@ func (s *APIServer) handleNotificationRead(w http.ResponseWriter, r *http.Reques
 
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id <= 0 {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректный идентификатор уведомления")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid notification ID")
 		return
 	}
 
 	notification, err := s.store.MarkNotificationReadByUser(r.Context(), principal.ID, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "notification_not_found", "Уведомление не найдено")
+			httpx.WriteError(w, http.StatusNotFound, "notification_not_found", "Notification not found")
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 

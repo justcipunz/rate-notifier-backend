@@ -39,7 +39,7 @@ type targetsResponse struct {
 func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
 		return
 	}
 
@@ -47,7 +47,7 @@ func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		targets, err := s.store.ListTargetsByUser(r.Context(), principal.ID)
 		if err != nil {
-			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 			return
 		}
 
@@ -62,13 +62,13 @@ func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) handleTargetByID(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
 		return
 	}
 
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id <= 0 {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректный идентификатор цели")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid target ID")
 		return
 	}
 
@@ -85,7 +85,7 @@ func (s *APIServer) handleTargetByID(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID int64) {
 	var req targetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректные данные запроса")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid request data")
 		return
 	}
 
@@ -106,7 +106,7 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 		IsActive:    true,
 	})
 	if err != nil {
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID, targetID int64) {
 	var req targetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректные данные запроса")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid request data")
 		return
 	}
 
@@ -134,15 +134,15 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 	current, err := s.store.GetTargetByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Цель не найдена")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
 	if current.UserID != userID {
-		httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Цель не найдена")
+		httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 		return
 	}
 
@@ -164,10 +164,10 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 	saved, err := s.store.UpdateTarget(r.Context(), updated)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Цель не найдена")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
@@ -180,31 +180,31 @@ func (s *APIServer) deleteTarget(w http.ResponseWriter, r *http.Request, userID,
 	current, err := s.store.GetTargetByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Цель не найдена")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
 	if current.UserID != userID {
-		httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Цель не найдена")
+		httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 		return
 	}
 
 	if err := s.store.DeleteTarget(r.Context(), targetID); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Цель не найдена")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-var errCurrencyNotSupported = errors.New("валюта не поддерживается")
+var errCurrencyNotSupported = errors.New("currency not supported")
 
 func validateTargetRequest(req targetRequest) error {
 	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
@@ -215,14 +215,14 @@ func validateTargetRequest(req targetRequest) error {
 	}
 
 	if req.TargetValue <= 0 {
-		return errors.New("целевое значение должно быть больше нуля")
+		return errors.New("target value must be greater than zero")
 	}
 
 	condition := strings.ToLower(strings.TrimSpace(req.Condition))
 	switch condition {
 	case "above", "below":
 	default:
-		return errors.New("неизвестное условие")
+		return errors.New("unknown condition")
 	}
 
 	return nil
