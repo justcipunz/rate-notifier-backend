@@ -186,68 +186,6 @@ func (s *Store) ListActiveTargetsByCurrency(ctx context.Context, currency string
 	return targets, nil
 }
 
-func (s *Store) ActivateTarget(ctx context.Context, id int64) (models.Target, error) {
-	var (
-		target    models.Target
-		triggered sql.NullTime
-		createdAt time.Time
-		updatedAt time.Time
-	)
-
-	err := s.pool.QueryRow(ctx, `
-UPDATE targets
-SET is_active = TRUE,
-    triggered_at = NULL,
-    updated_at = NOW()
-WHERE id = $1
-RETURNING id, user_id, currency, target_value, condition, is_active, triggered_at, created_at, updated_at`,
-		id,
-	).Scan(&target.ID, &target.UserID, &target.Currency, &target.TargetValue, &target.Condition, &target.IsActive, &triggered, &createdAt, &updatedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Target{}, ErrNotFound
-		}
-		return models.Target{}, fmt.Errorf("activate target: %w", err)
-	}
-
-	target.TriggeredAt = nullTimePtr(triggered)
-	target.CreatedAt = createdAt
-	target.UpdatedAt = updatedAt
-
-	return target, nil
-}
-
-func (s *Store) DeactivateTarget(ctx context.Context, id int64, triggeredAt *time.Time) (models.Target, error) {
-	var (
-		target    models.Target
-		triggered sql.NullTime
-		createdAt time.Time
-		updatedAt time.Time
-	)
-
-	err := s.pool.QueryRow(ctx, `
-UPDATE targets
-SET is_active = FALSE,
-    triggered_at = $2,
-    updated_at = NOW()
-WHERE id = $1
-RETURNING id, user_id, currency, target_value, condition, is_active, triggered_at, created_at, updated_at`,
-		id, triggeredAt,
-	).Scan(&target.ID, &target.UserID, &target.Currency, &target.TargetValue, &target.Condition, &target.IsActive, &triggered, &createdAt, &updatedAt)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Target{}, ErrNotFound
-		}
-		return models.Target{}, fmt.Errorf("deactivate target: %w", err)
-	}
-
-	target.TriggeredAt = nullTimePtr(triggered)
-	target.CreatedAt = createdAt
-	target.UpdatedAt = updatedAt
-
-	return target, nil
-}
-
 func nullTimePtr(v sql.NullTime) *time.Time {
 	if !v.Valid {
 		return nil
