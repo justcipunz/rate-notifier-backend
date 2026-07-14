@@ -33,7 +33,7 @@ func (s *APIServer) handleSettings(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteError(w, http.StatusNotFound, "settings_not_found", "Settings not found")
 				return
 			}
-			s.logger.Printf("get user settings: %v", err)
+			s.logInternal("get settings: %v", err)
 			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 			return
 		}
@@ -59,7 +59,7 @@ func (s *APIServer) handleSettings(w http.ResponseWriter, r *http.Request) {
 				httpx.WriteError(w, http.StatusNotFound, "settings_not_found", "Settings not found")
 				return
 			}
-			s.logger.Printf("update user settings: %v", err)
+			s.logInternal("update settings: %v", err)
 			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 			return
 		}

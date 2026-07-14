@@ -57,7 +57,7 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 	passwordHash, err := auth.HashPassword(req.Password)
 	if err != nil {
-		s.logger.Printf("hash password: %v", err)
+		s.logInternal("hash password: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
@@ -68,14 +68,14 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusConflict, "email_already_exists", "Email уже зарегистрирован")
 			return
 		}
-		s.logger.Printf("create user: %v", err)
+		s.logInternal("create user: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
 	token, err := s.tokens.Generate(user.ID, user.Email)
 	if err != nil {
-		s.logger.Printf("generate token: %v", err)
+		s.logInternal("generate token: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
@@ -110,7 +110,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "Неверный email или пароль")
 			return
 		}
-		s.logger.Printf("get user by email: %v", err)
+		s.logInternal("get user by email: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
@@ -122,7 +122,7 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	token, err := s.tokens.Generate(user.ID, user.Email)
 	if err != nil {
-		s.logger.Printf("generate token: %v", err)
+		s.logInternal("generate token: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
@@ -147,7 +147,7 @@ func (s *APIServer) handleMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.store.GetUserByID(r.Context(), principal.ID)
 	if err != nil {
-		s.logger.Printf("get user by id: %v", err)
+		s.logInternal("get current user: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}

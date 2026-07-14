@@ -101,3 +101,11 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		"status": "ok",
 	})
 }
+
+func (s *APIServer) logInternal(format string, args ...any) {
+	if s.logger == nil {
+		return
+	}
+
+	s.logger.Printf(format, args...)
+}

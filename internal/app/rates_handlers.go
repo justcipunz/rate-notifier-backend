@@ -27,6 +27,7 @@ func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 
 	rates, err := s.store.ListRates(r.Context())
 	if err != nil {
+		s.logInternal("list rates: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}

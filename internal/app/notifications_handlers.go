@@ -46,6 +46,7 @@ func (s *APIServer) handleNotifications(w http.ResponseWriter, r *http.Request) 
 
 	notifications, err := s.store.ListNotificationsByUser(r.Context(), principal.ID)
 	if err != nil {
+		s.logInternal("list notifications: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
@@ -77,6 +78,7 @@ func (s *APIServer) handleNotificationRead(w http.ResponseWriter, r *http.Reques
 			httpx.WriteError(w, http.StatusNotFound, "notification_not_found", "Notification not found")
 			return
 		}
+		s.logInternal("mark notification read: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}

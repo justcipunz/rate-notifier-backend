@@ -53,6 +53,7 @@ func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		targets, err := s.store.ListTargetsByUser(r.Context(), principal.ID)
 		if err != nil {
+			s.logInternal("list targets: %v", err)
 			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 			return
 		}
@@ -112,6 +113,7 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 		IsActive:    true,
 	})
 	if err != nil {
+		s.logInternal("create target: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
@@ -148,6 +150,7 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
+		s.logInternal("get target: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
@@ -178,6 +181,7 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
+		s.logInternal("update target: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
@@ -194,6 +198,7 @@ func (s *APIServer) deleteTarget(w http.ResponseWriter, r *http.Request, userID,
 			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
+		s.logInternal("get target: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
@@ -208,6 +213,7 @@ func (s *APIServer) deleteTarget(w http.ResponseWriter, r *http.Request, userID,
 			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
 			return
 		}
+		s.logInternal("delete target: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
 		return
 	}
