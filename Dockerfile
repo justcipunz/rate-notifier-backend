@@ -6,7 +6,6 @@ COPY go.mod ./
 COPY go.sum ./
 COPY cmd ./cmd
 COPY internal ./internal
-COPY migrations ./migrations
 
 RUN go build -o /app/api ./cmd/api && \
     go build -o /app/worker ./cmd/worker
