@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -59,6 +60,55 @@ func TestHandleMeReturnsInternalErrorOnStoreFailure(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	server.handleMe(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+}
+
+func TestHandleLoginReturnsUnauthorizedWhenUserMissing(t *testing.T) {
+	store := &fakeSettingsStore{
+		getByEmailErr: storage.ErrNotFound,
+	}
+	server := &APIServer{
+		store:  store,
+		logger: log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"email":"user@example.com","password":"password123"}`))
+	rr := httptest.NewRecorder()
+
+	server.handleLogin(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+	if !store.getByEmailCalled {
+		t.Fatal("expected GetUserByEmail to be called")
+	}
+
+	var resp httpx.ErrorResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp.Error.Code != "invalid_credentials" {
+		t.Fatalf("unexpected error code: %s", resp.Error.Code)
+	}
+}
+
+func TestHandleLoginReturnsInternalErrorOnStoreFailure(t *testing.T) {
+	store := &fakeSettingsStore{
+		getByEmailErr: errors.New("db failed"),
+	}
+	server := &APIServer{
+		store:  store,
+		logger: log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString(`{"email":"user@example.com","password":"password123"}`))
+	rr := httptest.NewRecorder()
+
+	server.handleLogin(rr, req)
 
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("unexpected status: %d", rr.Code)

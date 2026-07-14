@@ -16,17 +16,21 @@ import (
 )
 
 type fakeSettingsStore struct {
-	getSettings   models.UserSettings
-	getErr        error
-	updateErr     error
-	updateCalled  bool
-	updateValue   bool
-	updateUserID  int64
-	getCalled     bool
-	getUserID     int64
-	getUser       models.User
-	getUserErr    error
-	getUserCalled bool
+	getSettings      models.UserSettings
+	getErr           error
+	updateErr        error
+	updateCalled     bool
+	updateValue      bool
+	updateUserID     int64
+	getCalled        bool
+	getUserID        int64
+	getUser          models.User
+	getUserErr       error
+	getUserCalled    bool
+	getEmail         string
+	getByEmail       models.User
+	getByEmailErr    error
+	getByEmailCalled bool
 }
 
 func (f *fakeSettingsStore) CreateUser(ctx context.Context, email, passwordHash string) (models.User, error) {
@@ -34,7 +38,9 @@ func (f *fakeSettingsStore) CreateUser(ctx context.Context, email, passwordHash 
 }
 
 func (f *fakeSettingsStore) GetUserByEmail(ctx context.Context, email string) (models.User, error) {
-	panic("unused")
+	f.getByEmailCalled = true
+	f.getEmail = email
+	return f.getByEmail, f.getByEmailErr
 }
 
 func (f *fakeSettingsStore) GetUserByID(ctx context.Context, id int64) (models.User, error) {
@@ -208,5 +214,27 @@ func TestHandleSettingsReturnsInternalErrorOnStoreFailure(t *testing.T) {
 
 	if rr.Code != http.StatusInternalServerError {
 		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+}
+
+func TestHandleSettingsPutRequiresNotificationsEnabled(t *testing.T) {
+	store := &fakeSettingsStore{}
+	server := &APIServer{
+		store:  store,
+		logger: log.New(io.Discard, "", 0),
+	}
+
+	body := bytes.NewBufferString(`{}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/settings", body)
+	req = req.WithContext(auth.WithPrincipal(req.Context(), auth.Principal{ID: 7, Email: "user@example.com"}))
+	rr := httptest.NewRecorder()
+
+	server.handleSettings(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+	if store.updateCalled {
+		t.Fatal("expected UpdateUserSettings not to be called")
 	}
 }
