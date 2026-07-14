@@ -21,12 +21,20 @@ func TestHashPasswordAndCheckPassword(t *testing.T) {
 }
 
 func TestValidatePassword(t *testing.T) {
-	if err := ValidatePassword("short"); err == nil {
-		t.Fatal("expected error for short password")
+	if err := ValidatePassword(strings.Repeat("a", 7)); err == nil {
+		t.Fatal("expected error for 7 ASCII characters")
 	}
 
-	if err := ValidatePassword("secret123"); err != nil {
-		t.Fatalf("ValidatePassword returned error for valid password: %v", err)
+	if err := ValidatePassword(strings.Repeat("a", 8)); err != nil {
+		t.Fatalf("ValidatePassword returned error for 8 ASCII characters: %v", err)
+	}
+
+	if err := ValidatePassword(strings.Repeat("а", 4)); err == nil {
+		t.Fatal("expected error for 4 Cyrillic characters")
+	}
+
+	if err := ValidatePassword(strings.Repeat("а", 8)); err != nil {
+		t.Fatalf("ValidatePassword returned error for 8 Cyrillic characters: %v", err)
 	}
 
 	long := strings.Repeat("a", MaxPasswordBytes+1)
