@@ -18,14 +18,14 @@ import (
 )
 
 type APIServer struct {
-	cfg    config.Config
+	cfg    config.APIConfig
 	logger *log.Logger
 	db     *pgxpool.Pool
 	store  *storage.Store
 	tokens *auth.TokenManager
 }
 
-func NewAPI(cfg config.Config, logger *log.Logger, db *pgxpool.Pool) *APIServer {
+func NewAPI(cfg config.APIConfig, logger *log.Logger, db *pgxpool.Pool) *APIServer {
 	return &APIServer{
 		cfg:    cfg,
 		logger: logger,

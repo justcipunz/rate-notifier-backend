@@ -13,14 +13,14 @@ import (
 )
 
 type Worker struct {
-	cfg      config.Config
+	cfg      config.WorkerConfig
 	logger   *log.Logger
 	db       *pgxpool.Pool
 	store    *storage.Store
 	provider *rateprovider.Provider
 }
 
-func NewWorker(cfg config.Config, logger *log.Logger, db *pgxpool.Pool) *Worker {
+func NewWorker(cfg config.WorkerConfig, logger *log.Logger, db *pgxpool.Pool) *Worker {
 	return &Worker{
 		cfg:      cfg,
 		logger:   logger,
