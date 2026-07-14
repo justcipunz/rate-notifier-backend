@@ -18,7 +18,13 @@ type targetRequest struct {
 	Currency    string  `json:"currency"`
 	TargetValue float64 `json:"target_value"`
 	Condition   string  `json:"condition"`
-	IsActive    bool    `json:"is_active,omitempty"`
+}
+
+type targetUpdateRequest struct {
+	Currency    string  `json:"currency"`
+	TargetValue float64 `json:"target_value"`
+	Condition   string  `json:"condition"`
+	IsActive    *bool   `json:"is_active"`
 }
 
 type targetDTO struct {
@@ -89,7 +95,7 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 		return
 	}
 
-	if err := validateTargetRequest(req); err != nil {
+	if err := validateTargetFields(req.Currency, req.TargetValue, req.Condition); err != nil {
 		code := "validation_error"
 		if errors.Is(err, errCurrencyNotSupported) {
 			code = "currency_not_supported"
@@ -116,13 +122,18 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 }
 
 func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID, targetID int64) {
-	var req targetRequest
+	var req targetUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid request data")
 		return
 	}
 
-	if err := validateTargetRequest(req); err != nil {
+	if req.IsActive == nil {
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "is_active is required")
+		return
+	}
+
+	if err := validateTargetFields(req.Currency, req.TargetValue, req.Condition); err != nil {
 		code := "validation_error"
 		if errors.Is(err, errCurrencyNotSupported) {
 			code = "currency_not_supported"
@@ -152,10 +163,10 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 		Currency:    strings.ToUpper(strings.TrimSpace(req.Currency)),
 		TargetValue: req.TargetValue,
 		Condition:   strings.ToLower(strings.TrimSpace(req.Condition)),
-		IsActive:    req.IsActive,
+		IsActive:    *req.IsActive,
 	}
 
-	if req.IsActive {
+	if *req.IsActive {
 		updated.TriggeredAt = nil
 	} else {
 		updated.TriggeredAt = current.TriggeredAt
@@ -206,19 +217,19 @@ func (s *APIServer) deleteTarget(w http.ResponseWriter, r *http.Request, userID,
 
 var errCurrencyNotSupported = errors.New("currency not supported")
 
-func validateTargetRequest(req targetRequest) error {
-	currency := strings.ToUpper(strings.TrimSpace(req.Currency))
+func validateTargetFields(currency string, targetValue float64, condition string) error {
+	currency = strings.ToUpper(strings.TrimSpace(currency))
 	switch currency {
 	case "USD", "EUR", "CNY":
 	default:
 		return errCurrencyNotSupported
 	}
 
-	if req.TargetValue <= 0 {
+	if targetValue <= 0 {
 		return errors.New("target value must be greater than zero")
 	}
 
-	condition := strings.ToLower(strings.TrimSpace(req.Condition))
+	condition = strings.ToLower(strings.TrimSpace(condition))
 	switch condition {
 	case "above", "below":
 	default:

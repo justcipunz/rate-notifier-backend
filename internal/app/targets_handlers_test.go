@@ -2,8 +2,12 @@ package app
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/justcipunz/rate-notifier-backend/internal/auth"
 	"github.com/justcipunz/rate-notifier-backend/internal/models"
 )
 
@@ -15,8 +19,8 @@ func TestValidateTargetRequest(t *testing.T) {
 			Condition:   "above",
 		}
 
-		if err := validateTargetRequest(req); err != nil {
-			t.Fatalf("validateTargetRequest returned error: %v", err)
+		if err := validateTargetFields(req.Currency, req.TargetValue, req.Condition); err != nil {
+			t.Fatalf("validateTargetFields returned error: %v", err)
 		}
 	})
 
@@ -27,7 +31,7 @@ func TestValidateTargetRequest(t *testing.T) {
 			Condition:   "above",
 		}
 
-		err := validateTargetRequest(req)
+		err := validateTargetFields(req.Currency, req.TargetValue, req.Condition)
 		if !errors.Is(err, errCurrencyNotSupported) {
 			t.Fatalf("expected currency error, got: %v", err)
 		}
@@ -40,7 +44,7 @@ func TestValidateTargetRequest(t *testing.T) {
 			Condition:   "above",
 		}
 
-		if err := validateTargetRequest(req); err == nil {
+		if err := validateTargetFields(req.Currency, req.TargetValue, req.Condition); err == nil {
 			t.Fatal("expected validation error for zero value")
 		}
 	})
@@ -52,7 +56,7 @@ func TestValidateTargetRequest(t *testing.T) {
 			Condition:   "sideways",
 		}
 
-		if err := validateTargetRequest(req); err == nil {
+		if err := validateTargetFields(req.Currency, req.TargetValue, req.Condition); err == nil {
 			t.Fatal("expected validation error for unknown condition")
 		}
 	})
@@ -110,5 +114,19 @@ func TestTargetMatches(t *testing.T) {
 				t.Fatalf("targetMatches() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestUpdateTargetRequiresIsActive(t *testing.T) {
+	server := &APIServer{}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/targets/1", strings.NewReader(`{"currency":"usd","target_value":95,"condition":"above"}`))
+	req = req.WithContext(auth.WithPrincipal(req.Context(), auth.Principal{ID: 1, Email: "user@example.com"}))
+	rr := httptest.NewRecorder()
+
+	server.updateTarget(rr, req, 1, 1)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("unexpected status: %d", rr.Code)
 	}
 }
