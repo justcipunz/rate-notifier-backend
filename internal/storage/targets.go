@@ -11,6 +11,15 @@ import (
 	"github.com/justcipunz/rate-notifier-backend/internal/models"
 )
 
+const listActiveTargetsByCurrencyQuery = `
+SELECT t.id, t.user_id, t.currency, t.target_value, t.condition, t.is_active, t.triggered_at, t.created_at, t.updated_at
+FROM targets t
+JOIN users u ON u.id = t.user_id
+WHERE t.currency = $1
+  AND t.is_active = TRUE
+  AND u.notifications_enabled = TRUE
+ORDER BY t.id`
+
 func (s *Store) CreateTarget(ctx context.Context, target models.Target) (models.Target, error) {
 	var (
 		created   models.Target
@@ -146,14 +155,7 @@ func (s *Store) DeleteTarget(ctx context.Context, id int64) error {
 }
 
 func (s *Store) ListActiveTargetsByCurrency(ctx context.Context, currency string) ([]models.Target, error) {
-	rows, err := s.pool.Query(ctx, `
-SELECT t.id, t.user_id, t.currency, t.target_value, t.condition, t.is_active, t.triggered_at, t.created_at, t.updated_at
-FROM targets t
-JOIN users u ON u.id = t.user_id
-WHERE t.currency = $1
-  AND t.is_active = TRUE
-  AND u.notifications_enabled = TRUE
-ORDER BY t.id`,
+	rows, err := s.pool.Query(ctx, listActiveTargetsByCurrencyQuery,
 		currency,
 	)
 	if err != nil {

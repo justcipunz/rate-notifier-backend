@@ -21,7 +21,7 @@ type APIServer struct {
 	cfg    config.APIConfig
 	logger *log.Logger
 	db     *pgxpool.Pool
-	store  *storage.Store
+	store  APIStore
 	tokens *auth.TokenManager
 }
 
