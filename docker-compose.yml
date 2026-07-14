@@ -18,10 +18,12 @@ services:
   api:
     build: .
     command: ["/app/api"]
-    env_file:
-      - .env
     environment:
-      APP_PORT: "8080"
+      APP_PORT: ${APP_PORT:-8080}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_TTL: ${JWT_TTL:-12h}
+      CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-http://localhost:3000}
     ports:
       - "8080:8080"
     depends_on:
@@ -36,8 +38,11 @@ services:
   worker:
     build: .
     command: ["/app/worker"]
-    env_file:
-      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      RATE_PROVIDER_URL: ${RATE_PROVIDER_URL}
+      RATE_FETCH_INTERVAL: ${RATE_FETCH_INTERVAL:-5m}
+      RATE_PROVIDER_TIMEOUT: ${RATE_PROVIDER_TIMEOUT:-10s}
     depends_on:
       api:
         condition: service_healthy
