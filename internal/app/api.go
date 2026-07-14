@@ -53,9 +53,16 @@ func (s *APIServer) Run(ctx context.Context) error {
 	mux.Handle("/api/v1/notifications/{id}/read", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleNotificationRead)))
 	mux.HandleFunc("/health", healthHandler)
 
+	handler := middleware.Chain(
+		mux,
+		middleware.Recovery(s.logger),
+		middleware.Logging(s.logger),
+		middleware.CORS(s.cfg.CORSAllowedOrigin),
+	)
+
 	server := &http.Server{
 		Addr:              ":" + s.cfg.AppPort,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
