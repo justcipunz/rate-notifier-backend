@@ -4,11 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"net/mail"
 	"strings"
 
 	"github.com/justcipunz/rate-notifier-backend/internal/auth"
 	"github.com/justcipunz/rate-notifier-backend/internal/httpx"
+	"github.com/justcipunz/rate-notifier-backend/internal/models"
 	"github.com/justcipunz/rate-notifier-backend/internal/storage"
 )
 
@@ -23,8 +23,9 @@ type authResponse struct {
 }
 
 type userDTO struct {
-	ID    int64  `json:"id"`
-	Email string `json:"email"`
+	ID        int64  `json:"id"`
+	Email     string `json:"email"`
+	CreatedAt string `json:"created_at"`
 }
 
 func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -39,45 +40,49 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Email = strings.TrimSpace(req.Email)
-	if _, err := mail.ParseAddress(req.Email); err != nil {
+	email, err := auth.NormalizeEmail(req.Email)
+	if err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректный email")
 		return
 	}
 
-	if len(req.Password) < 8 {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Слишком короткий пароль")
+	if err := auth.ValidatePassword(req.Password); err != nil {
+		message := "Пароль должен содержать не менее 8 байт"
+		if strings.Contains(err.Error(), "at most 72 bytes") {
+			message = "Пароль должен содержать не более 72 байт"
+		}
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", message)
 		return
 	}
 
 	passwordHash, err := auth.HashPassword(req.Password)
 	if err != nil {
+		s.logger.Printf("hash password: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
-	user, err := s.store.CreateUser(r.Context(), req.Email, passwordHash)
+	user, err := s.store.CreateUser(r.Context(), email, passwordHash)
 	if err != nil {
 		if errors.Is(err, storage.ErrEmailExists) {
 			httpx.WriteError(w, http.StatusConflict, "email_already_exists", "Email уже зарегистрирован")
 			return
 		}
+		s.logger.Printf("create user: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
 	token, err := s.tokens.Generate(user.ID, user.Email)
 	if err != nil {
+		s.logger.Printf("generate token: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
 	httpx.WriteJSON(w, http.StatusCreated, authResponse{
 		Token: token,
-		User: userDTO{
-			ID:    user.ID,
-			Email: user.Email,
-		},
+		User:  userToDTO(user),
 	})
 }
 
@@ -93,10 +98,20 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	req.Email = strings.TrimSpace(req.Email)
-	user, err := s.store.GetUserByEmail(r.Context(), req.Email)
+	email, err := auth.NormalizeEmail(req.Email)
 	if err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "Неверный email или пароль")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректный email")
+		return
+	}
+
+	user, err := s.store.GetUserByEmail(r.Context(), email)
+	if err != nil {
+		if errors.Is(err, storage.ErrNotFound) {
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "Неверный email или пароль")
+			return
+		}
+		s.logger.Printf("get user by email: %v", err)
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
@@ -107,16 +122,14 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 	token, err := s.tokens.Generate(user.ID, user.Email)
 	if err != nil {
+		s.logger.Printf("generate token: %v", err)
 		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, authResponse{
 		Token: token,
-		User: userDTO{
-			ID:    user.ID,
-			Email: user.Email,
-		},
+		User:  userToDTO(user),
 	})
 }
 
@@ -134,12 +147,18 @@ func (s *APIServer) handleMe(w http.ResponseWriter, r *http.Request) {
 
 	user, err := s.store.GetUserByID(r.Context(), principal.ID)
 	if err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		s.logger.Printf("get user by id: %v", err)
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
 		return
 	}
 
-	httpx.WriteJSON(w, http.StatusOK, userDTO{
-		ID:    user.ID,
-		Email: user.Email,
-	})
+	httpx.WriteJSON(w, http.StatusOK, userToDTO(user))
+}
+
+func userToDTO(user models.User) userDTO {
+	return userDTO{
+		ID:        user.ID,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+	}
 }
