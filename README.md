@@ -100,19 +100,18 @@ Rate Notifier - серверная часть для Flutter Web клиента.
 ## Переменные окружения
 
 Пример в `.env.example`.
-
 Обязательные:
 
 - `DATABASE_URL` - URL подключения к PostgreSQL
 - `JWT_SECRET` - секрет для подписи JWT
 - `RATE_PROVIDER_URL` - адрес внешнего API курсов
-- `RATE_FETCH_INTERVAL` - интервал обновления курсов
 
 Дополнительные:
 
-- `APP_PORT` - порт API
-- `JWT_TTL` - время жизни JWT
-- `RATE_PROVIDER_TIMEOUT` - timeout запроса к внешнему API
+- `APP_PORT` - порт API, по умолчанию `8080`
+- `JWT_TTL` - время жизни JWT, по умолчанию `12h`
+- `RATE_FETCH_INTERVAL` - интервал обновления курсов, по умолчанию `5m`
+- `RATE_PROVIDER_TIMEOUT` - timeout запроса к внешнему API, по умолчанию `10s`
 - `CORS_ALLOWED_ORIGIN` - разрешённый origin для CORS
 
 ## Запуск через Docker
