@@ -64,25 +64,9 @@ func (w *Worker) syncRates(ctx context.Context) error {
 		return err
 	}
 
-	currentRates, err := w.store.ListRates(ctx)
-	if err != nil {
-		return err
-	}
-
-	currentByCurrency := make(map[string]float64, len(currentRates))
-	for _, rate := range currentRates {
-		currentByCurrency[rate.Currency] = rate.Value
-	}
-
 	updated := make([]string, 0, len(snapshots))
 	for _, snapshot := range snapshots {
-		prev, ok := currentByCurrency[snapshot.Currency]
-		var prevPtr *float64
-		if ok {
-			prevPtr = &prev
-		}
-
-		saved, err := w.store.UpsertRate(ctx, snapshot.Currency, snapshot.Value, prevPtr)
+		saved, err := w.store.UpsertRate(ctx, snapshot.Currency, snapshot.Value, snapshot.Previous)
 		if err != nil {
 			return err
 		}

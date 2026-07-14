@@ -19,6 +19,7 @@ type Snapshot struct {
 	Name     string
 	Value    float64
 	Nominal  float64
+	Previous *float64
 }
 
 type cbrResponse struct {
@@ -26,10 +27,11 @@ type cbrResponse struct {
 }
 
 type cbrCurrency struct {
-	CharCode string  `json:"CharCode"`
-	Name     string  `json:"Name"`
-	Nominal  float64 `json:"Nominal"`
-	Value    float64 `json:"Value"`
+	CharCode string   `json:"CharCode"`
+	Name     string   `json:"Name"`
+	Nominal  float64  `json:"Nominal"`
+	Value    float64  `json:"Value"`
+	Previous *float64 `json:"Previous"`
 }
 
 func New(url string, timeout time.Duration) *Provider {
@@ -70,8 +72,14 @@ func (p *Provider) Fetch(ctx context.Context) ([]Snapshot, error) {
 		}
 
 		nominal := item.Nominal
-		if nominal == 0 {
-			nominal = 1
+		if nominal <= 0 {
+			return nil, fmt.Errorf("invalid nominal for %s", code)
+		}
+
+		var previous *float64
+		if item.Previous != nil {
+			value := *item.Previous / nominal
+			previous = &value
 		}
 
 		rates = append(rates, Snapshot{
@@ -79,6 +87,7 @@ func (p *Provider) Fetch(ctx context.Context) ([]Snapshot, error) {
 			Name:     item.Name,
 			Value:    item.Value / nominal,
 			Nominal:  nominal,
+			Previous: previous,
 		})
 	}
 

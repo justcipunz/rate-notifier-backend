@@ -14,8 +14,8 @@ type rateDTO struct {
 	Currency      string   `json:"currency"`
 	Name          string   `json:"name"`
 	Value         float64  `json:"value"`
-	PreviousValue *float64 `json:"previous_value,omitempty"`
-	Change        float64  `json:"change"`
+	PreviousValue *float64 `json:"previous_value"`
+	Change        *float64 `json:"change"`
 	UpdatedAt     string   `json:"updated_at"`
 }
 
@@ -33,16 +33,20 @@ func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]rateDTO, 0, len(rates))
 	for _, rate := range rates {
+		var change *float64
+		if rate.PreviousValue != nil {
+			value := rate.Value - *rate.PreviousValue
+			change = &value
+		}
+
 		dto := rateDTO{
 			Currency:  rate.Currency,
 			Name:      currencyName(rate.Currency),
 			Value:     rate.Value,
-			Change:    rate.Value - floatOrZero(rate.PreviousValue),
+			Change:    change,
 			UpdatedAt: rate.UpdatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		}
-		if rate.PreviousValue != nil {
-			dto.PreviousValue = rate.PreviousValue
-		}
+		dto.PreviousValue = rate.PreviousValue
 		items = append(items, dto)
 	}
 
@@ -60,12 +64,4 @@ func currencyName(code string) string {
 	default:
 		return code
 	}
-}
-
-func floatOrZero(v *float64) float64 {
-	if v == nil {
-		return 0
-	}
-
-	return *v
 }

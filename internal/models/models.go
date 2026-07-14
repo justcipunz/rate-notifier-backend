@@ -13,8 +13,8 @@ type Rate struct {
 	Currency      string    `json:"currency"`
 	Name          string    `json:"name"`
 	Value         float64   `json:"value"`
-	PreviousValue *float64  `json:"previous_value,omitempty"`
-	Change        float64   `json:"change"`
+	PreviousValue *float64  `json:"previous_value"`
+	Change        *float64  `json:"change"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
