@@ -147,10 +147,13 @@ func (s *Store) DeleteTarget(ctx context.Context, id int64) error {
 
 func (s *Store) ListActiveTargetsByCurrency(ctx context.Context, currency string) ([]models.Target, error) {
 	rows, err := s.pool.Query(ctx, `
-SELECT id, user_id, currency, target_value, condition, is_active, triggered_at, created_at, updated_at
-FROM targets
-WHERE currency = $1 AND is_active = TRUE
-ORDER BY id`,
+SELECT t.id, t.user_id, t.currency, t.target_value, t.condition, t.is_active, t.triggered_at, t.created_at, t.updated_at
+FROM targets t
+JOIN users u ON u.id = t.user_id
+WHERE t.currency = $1
+  AND t.is_active = TRUE
+  AND u.notifications_enabled = TRUE
+ORDER BY t.id`,
 		currency,
 	)
 	if err != nil {

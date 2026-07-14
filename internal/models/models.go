@@ -9,6 +9,10 @@ type User struct {
 	CreatedAt    time.Time `json:"created_at"`
 }
 
+type UserSettings struct {
+	NotificationsEnabled bool `json:"notifications_enabled"`
+}
+
 type Rate struct {
 	Currency      string    `json:"currency"`
 	Name          string    `json:"name"`
