@@ -1,13 +1,18 @@
 package auth
 
 import (
-	"fmt"
+	"errors"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
 const MaxPasswordBytes = 72
+
+var (
+	ErrPasswordTooShort = errors.New("Пароль должен содержать не менее 8 символов")
+	ErrPasswordTooLong  = errors.New("Пароль должен содержать не более 72 байт")
+)
 
 func HashPassword(password string) (string, error) {
 	if err := ValidatePassword(password); err != nil {
@@ -28,10 +33,10 @@ func CheckPassword(hash, password string) error {
 
 func ValidatePassword(password string) error {
 	if utf8.RuneCountInString(password) < 8 {
-		return fmt.Errorf("password must be at least 8 characters")
+		return ErrPasswordTooShort
 	}
 	if len([]byte(password)) > MaxPasswordBytes {
-		return fmt.Errorf("password must be at most 72 bytes")
+		return ErrPasswordTooLong
 	}
 
 	return nil

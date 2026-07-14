@@ -21,14 +21,14 @@ type rateDTO struct {
 
 func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 
 	rates, err := s.store.ListRates(r.Context())
 	if err != nil {
 		s.logInternal("list rates: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
@@ -57,11 +57,11 @@ func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 func currencyName(code string) string {
 	switch code {
 	case "USD":
-		return "US Dollar"
+		return "Доллар США"
 	case "EUR":
-		return "Euro"
+		return "Евро"
 	case "CNY":
-		return "Chinese Yuan"
+		return "Китайский юань"
 	default:
 		return code
 	}

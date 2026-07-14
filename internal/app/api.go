@@ -93,7 +93,7 @@ func (s *APIServer) Run(ctx context.Context) error {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 

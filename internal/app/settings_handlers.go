@@ -21,7 +21,7 @@ type settingsResponse struct {
 func (s *APIServer) handleSettings(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 		return
 	}
 
@@ -30,11 +30,11 @@ func (s *APIServer) handleSettings(w http.ResponseWriter, r *http.Request) {
 		settings, err := s.store.GetUserSettings(r.Context(), principal.ID)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				httpx.WriteError(w, http.StatusNotFound, "settings_not_found", "Settings not found")
+				httpx.WriteError(w, http.StatusNotFound, "settings_not_found", messageSettingsNotFound)
 				return
 			}
 			s.logInternal("get settings: %v", err)
-			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 			return
 		}
 
@@ -44,23 +44,23 @@ func (s *APIServer) handleSettings(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPut:
 		var req settingsRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректные данные запроса")
+			httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidRequestData)
 			return
 		}
 
 		if req.NotificationsEnabled == nil {
-			httpx.WriteError(w, http.StatusBadRequest, "validation_error", "notifications_enabled is required")
+			httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageNotificationsRequired)
 			return
 		}
 
 		settings, err := s.store.UpdateUserSettings(r.Context(), principal.ID, *req.NotificationsEnabled)
 		if err != nil {
 			if errors.Is(err, storage.ErrNotFound) {
-				httpx.WriteError(w, http.StatusNotFound, "settings_not_found", "Settings not found")
+				httpx.WriteError(w, http.StatusNotFound, "settings_not_found", messageSettingsNotFound)
 				return
 			}
 			s.logInternal("update settings: %v", err)
-			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 			return
 		}
 
@@ -68,6 +68,6 @@ func (s *APIServer) handleSettings(w http.ResponseWriter, r *http.Request) {
 			NotificationsEnabled: settings.NotificationsEnabled,
 		})
 	default:
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 	}
 }

@@ -45,7 +45,7 @@ type targetsResponse struct {
 func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 		targets, err := s.store.ListTargetsByUser(r.Context(), principal.ID)
 		if err != nil {
 			s.logInternal("list targets: %v", err)
-			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 			return
 		}
 
@@ -62,20 +62,20 @@ func (s *APIServer) handleTargets(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		s.createTarget(w, r, principal.ID)
 	default:
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 	}
 }
 
 func (s *APIServer) handleTargetByID(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 		return
 	}
 
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id <= 0 {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid target ID")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidTargetID)
 		return
 	}
 
@@ -85,14 +85,14 @@ func (s *APIServer) handleTargetByID(w http.ResponseWriter, r *http.Request) {
 	case http.MethodDelete:
 		s.deleteTarget(w, r, principal.ID, id)
 	default:
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 	}
 }
 
 func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID int64) {
 	var req targetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid request data")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidRequestData)
 		return
 	}
 
@@ -114,7 +114,7 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 	})
 	if err != nil {
 		s.logInternal("create target: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
@@ -126,12 +126,12 @@ func (s *APIServer) createTarget(w http.ResponseWriter, r *http.Request, userID 
 func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID, targetID int64) {
 	var req targetUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid request data")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidRequestData)
 		return
 	}
 
 	if req.IsActive == nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "is_active is required")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageIsActiveRequired)
 		return
 	}
 
@@ -147,16 +147,16 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 	current, err := s.store.GetTargetByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", messageTargetNotFound)
 			return
 		}
 		s.logInternal("get target: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
 	if current.UserID != userID {
-		httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
+		httpx.WriteError(w, http.StatusNotFound, "target_not_found", messageTargetNotFound)
 		return
 	}
 
@@ -178,11 +178,11 @@ func (s *APIServer) updateTarget(w http.ResponseWriter, r *http.Request, userID,
 	saved, err := s.store.UpdateTarget(r.Context(), updated)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", messageTargetNotFound)
 			return
 		}
 		s.logInternal("update target: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
@@ -195,33 +195,33 @@ func (s *APIServer) deleteTarget(w http.ResponseWriter, r *http.Request, userID,
 	current, err := s.store.GetTargetByID(r.Context(), targetID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", messageTargetNotFound)
 			return
 		}
 		s.logInternal("get target: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
 	if current.UserID != userID {
-		httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
+		httpx.WriteError(w, http.StatusNotFound, "target_not_found", messageTargetNotFound)
 		return
 	}
 
 	if err := s.store.DeleteTarget(r.Context(), targetID); err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "target_not_found", "Target not found")
+			httpx.WriteError(w, http.StatusNotFound, "target_not_found", messageTargetNotFound)
 			return
 		}
 		s.logInternal("delete target: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
 
-var errCurrencyNotSupported = errors.New("currency not supported")
+var errCurrencyNotSupported = errors.New(messageCurrencyNotSupported)
 
 func validateTargetFields(currency string, targetValue float64, condition string) error {
 	currency = strings.ToUpper(strings.TrimSpace(currency))
@@ -232,14 +232,14 @@ func validateTargetFields(currency string, targetValue float64, condition string
 	}
 
 	if targetValue <= 0 {
-		return errors.New("target value must be greater than zero")
+		return errors.New(messageTargetValuePositive)
 	}
 
 	condition = strings.ToLower(strings.TrimSpace(condition))
 	switch condition {
 	case "above", "below":
 	default:
-		return errors.New("unknown condition")
+		return errors.New(messageUnknownCondition)
 	}
 
 	return nil

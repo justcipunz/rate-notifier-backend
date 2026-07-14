@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/justcipunz/rate-notifier-backend/internal/auth"
 	"github.com/justcipunz/rate-notifier-backend/internal/httpx"
@@ -30,53 +29,49 @@ type userDTO struct {
 
 func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 
 	var req authRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректные данные запроса")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidRequestData)
 		return
 	}
 
 	email, err := auth.NormalizeEmail(req.Email)
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректный email")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidEmail)
 		return
 	}
 
 	if err := auth.ValidatePassword(req.Password); err != nil {
-		message := "Пароль должен содержать не менее 8 байт"
-		if strings.Contains(err.Error(), "at most 72 bytes") {
-			message = "Пароль должен содержать не более 72 байт"
-		}
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", message)
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", err.Error())
 		return
 	}
 
 	passwordHash, err := auth.HashPassword(req.Password)
 	if err != nil {
 		s.logInternal("hash password: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
 	user, err := s.store.CreateUser(r.Context(), email, passwordHash)
 	if err != nil {
 		if errors.Is(err, storage.ErrEmailExists) {
-			httpx.WriteError(w, http.StatusConflict, "email_already_exists", "Email уже зарегистрирован")
+			httpx.WriteError(w, http.StatusConflict, "email_already_exists", messageEmailAlreadyExists)
 			return
 		}
 		s.logInternal("create user: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
 	token, err := s.tokens.Generate(user.ID, user.Email)
 	if err != nil {
 		s.logInternal("generate token: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
@@ -88,42 +83,42 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 
 	var req authRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректные данные запроса")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidRequestData)
 		return
 	}
 
 	email, err := auth.NormalizeEmail(req.Email)
 	if err != nil {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Некорректный email")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidEmail)
 		return
 	}
 
 	user, err := s.store.GetUserByEmail(r.Context(), email)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "Неверный email или пароль")
+			httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", messageInvalidCredentials)
 			return
 		}
 		s.logInternal("get user by email: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
 	if err := auth.CheckPassword(user.PasswordHash, req.Password); err != nil {
-		httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", "Неверный email или пароль")
+		httpx.WriteError(w, http.StatusUnauthorized, "invalid_credentials", messageInvalidCredentials)
 		return
 	}
 
 	token, err := s.tokens.Generate(user.ID, user.Email)
 	if err != nil {
 		s.logInternal("generate token: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
@@ -135,24 +130,24 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) {
 
 func (s *APIServer) handleMe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 		return
 	}
 
 	user, err := s.store.GetUserByID(r.Context(), principal.ID)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Требуется авторизация")
+			httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 			return
 		}
 		s.logInternal("get current user: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Внутренняя ошибка")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 

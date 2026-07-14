@@ -35,19 +35,19 @@ type notificationReadResponse struct {
 func (s *APIServer) handleNotifications(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 		return
 	}
 
 	if r.Method != http.MethodGet {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 
 	notifications, err := s.store.ListNotificationsByUser(r.Context(), principal.ID)
 	if err != nil {
 		s.logInternal("list notifications: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
@@ -57,29 +57,29 @@ func (s *APIServer) handleNotifications(w http.ResponseWriter, r *http.Request) 
 func (s *APIServer) handleNotificationRead(w http.ResponseWriter, r *http.Request) {
 	principal, ok := auth.PrincipalFromContext(r.Context())
 	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", "Authorization required")
+		httpx.WriteError(w, http.StatusUnauthorized, "unauthorized", messageAuthRequired)
 		return
 	}
 
 	if r.Method != http.MethodPut {
-		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Method not allowed")
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
 		return
 	}
 
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil || id <= 0 {
-		httpx.WriteError(w, http.StatusBadRequest, "validation_error", "Invalid notification ID")
+		httpx.WriteError(w, http.StatusBadRequest, "validation_error", messageInvalidNotificationID)
 		return
 	}
 
 	notification, err := s.store.MarkNotificationReadByUser(r.Context(), principal.ID, id)
 	if err != nil {
 		if errors.Is(err, storage.ErrNotFound) {
-			httpx.WriteError(w, http.StatusNotFound, "notification_not_found", "Notification not found")
+			httpx.WriteError(w, http.StatusNotFound, "notification_not_found", messageNotificationNotFound)
 			return
 		}
 		s.logInternal("mark notification read: %v", err)
-		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", "Internal error")
+		httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
 		return
 	}
 
