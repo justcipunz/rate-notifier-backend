@@ -17,21 +17,26 @@ type Provider struct {
 type Snapshot struct {
 	Currency string
 	Name     string
-	Value    float64
-	Nominal  float64
-	Previous *float64
+
+	Value         float64
+	PreviousValue float64
+
+	EffectiveAt         time.Time
+	PreviousEffectiveAt time.Time
 }
 
 type cbrResponse struct {
-	Valute map[string]cbrCurrency `json:"Valute"`
+	Date         time.Time              `json:"Date"`
+	PreviousDate time.Time              `json:"PreviousDate"`
+	Valute       map[string]cbrCurrency `json:"Valute"`
 }
 
 type cbrCurrency struct {
-	CharCode string   `json:"CharCode"`
-	Name     string   `json:"Name"`
-	Nominal  float64  `json:"Nominal"`
-	Value    float64  `json:"Value"`
-	Previous *float64 `json:"Previous"`
+	CharCode string  `json:"CharCode"`
+	Name     string  `json:"Name"`
+	Nominal  float64 `json:"Nominal"`
+	Value    float64 `json:"Value"`
+	Previous float64 `json:"Previous"`
 }
 
 func New(url string, timeout time.Duration) *Provider {
@@ -63,6 +68,12 @@ func (p *Provider) Fetch(ctx context.Context) ([]Snapshot, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return nil, fmt.Errorf("decode rates response: %w", err)
 	}
+	if payload.Date.IsZero() {
+		return nil, fmt.Errorf("missing rate date")
+	}
+	if payload.PreviousDate.IsZero() {
+		return nil, fmt.Errorf("missing previous rate date")
+	}
 
 	rates := make([]Snapshot, 0, 3)
 	for _, code := range []string{"USD", "EUR", "CNY"} {
@@ -76,18 +87,13 @@ func (p *Provider) Fetch(ctx context.Context) ([]Snapshot, error) {
 			return nil, fmt.Errorf("invalid nominal for %s", code)
 		}
 
-		var previous *float64
-		if item.Previous != nil {
-			value := *item.Previous / nominal
-			previous = &value
-		}
-
 		rates = append(rates, Snapshot{
-			Currency: strings.ToUpper(item.CharCode),
-			Name:     item.Name,
-			Value:    item.Value / nominal,
-			Nominal:  nominal,
-			Previous: previous,
+			Currency:            strings.ToUpper(item.CharCode),
+			Name:                item.Name,
+			Value:               item.Value / nominal,
+			PreviousValue:       item.Previous / nominal,
+			EffectiveAt:         payload.Date,
+			PreviousEffectiveAt: payload.PreviousDate,
 		})
 	}
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/justcipunz/rate-notifier-backend/internal/auth"
 	"github.com/justcipunz/rate-notifier-backend/internal/models"
@@ -50,6 +51,10 @@ func (f *fakeSettingsStore) GetUserByID(ctx context.Context, id int64) (models.U
 }
 
 func (f *fakeSettingsStore) ListRates(ctx context.Context) ([]models.Rate, error) {
+	panic("unused")
+}
+
+func (f *fakeSettingsStore) ListRateHistory(ctx context.Context, currency string, from time.Time, to time.Time) ([]models.RateHistoryPoint, error) {
 	panic("unused")
 }
 

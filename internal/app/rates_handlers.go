@@ -2,9 +2,16 @@ package app
 
 import (
 	"net/http"
+	"sort"
+	"time"
 
 	"github.com/justcipunz/rate-notifier-backend/internal/httpx"
+	"github.com/justcipunz/rate-notifier-backend/internal/models"
 )
+
+const weeklyHistoryDays = 7
+
+var supportedCurrencies = []string{"USD", "EUR", "CNY"}
 
 type ratesResponse struct {
 	Rates []rateDTO `json:"rates"`
@@ -52,6 +59,116 @@ func (s *APIServer) handleRates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, ratesResponse{Rates: items})
+}
+
+func (s *APIServer) handleRateHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method_not_allowed", messageMethodNotAllowed)
+		return
+	}
+
+	today := startOfUTCDay(time.Now())
+	start := today.AddDate(0, 0, -(weeklyHistoryDays - 1))
+	to := today.AddDate(0, 0, 1).Add(-time.Nanosecond)
+
+	series := make([]models.RateHistorySeries, 0, len(supportedCurrencies))
+	for _, currency := range supportedCurrencies {
+		raw, err := s.store.ListRateHistory(r.Context(), currency, start, to)
+		if err != nil {
+			s.logInternal("failed to load weekly history: currency=%s error=%v", currency, err)
+			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
+			return
+		}
+
+		item, ok := BuildRateHistorySeries(currency, raw, start, weeklyHistoryDays)
+		if !ok {
+			continue
+		}
+		series = append(series, item)
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, models.RateHistoryResponse{
+		Period: "7d",
+		Series: series,
+	})
+}
+
+func BuildRateHistorySeries(currency string, raw []models.RateHistoryPoint, start time.Time, days int) (models.RateHistorySeries, bool) {
+	points := BuildDailyHistory(raw, start, days)
+	if len(points) == 0 {
+		return models.RateHistorySeries{}, false
+	}
+
+	startValue := points[0].Value
+	currentValue := points[len(points)-1].Value
+	change := currentValue - startValue
+
+	return models.RateHistorySeries{
+		Currency:      currency,
+		CurrentValue:  currentValue,
+		StartValue:    startValue,
+		Change:        change,
+		ChangePercent: change / startValue * 100,
+		Points:        points,
+	}, true
+}
+
+func BuildDailyHistory(raw []models.RateHistoryPoint, start time.Time, days int) []models.RateHistoryPoint {
+	if len(raw) == 0 || days <= 0 {
+		return nil
+	}
+
+	start = startOfUTCDay(start)
+	end := start.AddDate(0, 0, days)
+
+	items := append([]models.RateHistoryPoint(nil), raw...)
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].EffectiveAt.Before(items[j].EffectiveAt)
+	})
+
+	currentDay := start
+	firstDay := startOfUTCDay(items[0].EffectiveAt)
+	if firstDay.After(start) {
+		currentDay = firstDay
+	}
+	if !currentDay.Before(end) {
+		return nil
+	}
+
+	points := make([]models.RateHistoryPoint, 0, days)
+	var (
+		lastValue float64
+		hasValue  bool
+		index     int
+	)
+
+	for day := currentDay; day.Before(end); day = day.AddDate(0, 0, 1) {
+		for index < len(items) {
+			itemDay := startOfUTCDay(items[index].EffectiveAt)
+			if itemDay.After(day) {
+				break
+			}
+			lastValue = items[index].Value
+			hasValue = true
+			index++
+		}
+
+		if !hasValue {
+			continue
+		}
+
+		points = append(points, models.RateHistoryPoint{
+			Value:       lastValue,
+			EffectiveAt: day,
+		})
+	}
+
+	return points
+}
+
+func startOfUTCDay(value time.Time) time.Time {
+	utc := value.UTC()
+	return time.Date(utc.Year(), utc.Month(), utc.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func currencyName(code string) string {

@@ -22,6 +22,25 @@ type Rate struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 }
 
+type RateHistoryPoint struct {
+	Value       float64   `json:"value"`
+	EffectiveAt time.Time `json:"effective_at"`
+}
+
+type RateHistorySeries struct {
+	Currency      string             `json:"currency"`
+	CurrentValue  float64            `json:"current_value"`
+	StartValue    float64            `json:"start_value"`
+	Change        float64            `json:"change"`
+	ChangePercent float64            `json:"change_percent"`
+	Points        []RateHistoryPoint `json:"points"`
+}
+
+type RateHistoryResponse struct {
+	Period string              `json:"period"`
+	Series []RateHistorySeries `json:"series"`
+}
+
 type Target struct {
 	ID          int64      `json:"id"`
 	UserID      int64      `json:"user_id"`

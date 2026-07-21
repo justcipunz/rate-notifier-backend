@@ -45,6 +45,7 @@ func (s *APIServer) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/auth/register", s.handleRegister)
 	mux.HandleFunc("/api/v1/auth/login", s.handleLogin)
+	mux.HandleFunc("/api/v1/rates/history", s.handleRateHistory)
 	mux.HandleFunc("/api/v1/rates", s.handleRates)
 	mux.Handle("/api/v1/users/me", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleMe)))
 	mux.Handle("/api/v1/settings", middleware.RequireAuth(s.tokens, http.HandlerFunc(s.handleSettings)))

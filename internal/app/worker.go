@@ -65,13 +65,23 @@ func (w *Worker) syncRates(ctx context.Context) error {
 	}
 
 	updated := make([]string, 0, len(snapshots))
+	historyPointsUpserted := 0
 	for _, snapshot := range snapshots {
-		saved, err := w.store.UpsertRate(ctx, snapshot.Currency, snapshot.Value, snapshot.Previous)
+		saved, points, err := w.store.SaveRateSnapshot(
+			ctx,
+			snapshot.Currency,
+			snapshot.Value,
+			snapshot.PreviousValue,
+			snapshot.EffectiveAt,
+			snapshot.PreviousEffectiveAt,
+		)
 		if err != nil {
+			w.logger.Printf("failed to save rate history: currency=%s error=%v", snapshot.Currency, err)
 			return err
 		}
 
 		updated = append(updated, saved.Currency)
+		historyPointsUpserted += points
 
 		if err := w.processTargets(ctx, snapshot.Currency, snapshot.Value); err != nil {
 			return err
@@ -79,7 +89,7 @@ func (w *Worker) syncRates(ctx context.Context) error {
 	}
 
 	if len(updated) > 0 {
-		w.logger.Printf("rates updated: %v", updated)
+		w.logger.Printf("rates synchronized: currencies=%d history_points_upserted=%d", len(updated), historyPointsUpserted)
 	}
 
 	return nil
