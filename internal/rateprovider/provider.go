@@ -79,7 +79,7 @@ func (p *Provider) Fetch(ctx context.Context) ([]Snapshot, error) {
 	for _, code := range []string{"USD", "EUR", "CNY"} {
 		item, ok := payload.Valute[code]
 		if !ok {
-			continue
+			return nil, fmt.Errorf("missing currency %s", code)
 		}
 
 		nominal := item.Nominal
@@ -95,6 +95,9 @@ func (p *Provider) Fetch(ctx context.Context) ([]Snapshot, error) {
 			EffectiveAt:         payload.Date,
 			PreviousEffectiveAt: payload.PreviousDate,
 		})
+	}
+	if len(rates) != 3 {
+		return nil, fmt.Errorf("incomplete rates response")
 	}
 
 	return rates, nil

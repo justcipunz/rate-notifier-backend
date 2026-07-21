@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -29,6 +30,26 @@ DO UPDATE SET
 	}
 
 	return nil
+}
+
+func (s *Store) GetLatestRateHistoryEffectiveAt(ctx context.Context, currency string) (time.Time, error) {
+	var effectiveAt time.Time
+	err := s.pool.QueryRow(ctx, `
+SELECT effective_at
+FROM rate_history
+WHERE currency = $1
+ORDER BY effective_at DESC
+LIMIT 1`,
+		currency,
+	).Scan(&effectiveAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return time.Time{}, ErrNotFound
+		}
+		return time.Time{}, fmt.Errorf("get latest rate history effective_at: %w", err)
+	}
+
+	return effectiveAt, nil
 }
 
 func (s *Store) ListRateHistory(ctx context.Context, currency string, from time.Time, to time.Time) ([]models.RateHistoryPoint, error) {

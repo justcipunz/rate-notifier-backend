@@ -12,6 +12,7 @@ type APIStore interface {
 	GetUserByEmail(ctx context.Context, email string) (models.User, error)
 	GetUserByID(ctx context.Context, id int64) (models.User, error)
 	ListRates(ctx context.Context) ([]models.Rate, error)
+	GetLatestRateHistoryEffectiveAt(ctx context.Context, currency string) (time.Time, error)
 	ListRateHistory(ctx context.Context, currency string, from time.Time, to time.Time) ([]models.RateHistoryPoint, error)
 	ListTargetsByUser(ctx context.Context, userID int64) ([]models.Target, error)
 	CreateTarget(ctx context.Context, target models.Target) (models.Target, error)

@@ -54,6 +54,10 @@ func (f *fakeSettingsStore) ListRates(ctx context.Context) ([]models.Rate, error
 	panic("unused")
 }
 
+func (f *fakeSettingsStore) GetLatestRateHistoryEffectiveAt(ctx context.Context, currency string) (time.Time, error) {
+	panic("unused")
+}
+
 func (f *fakeSettingsStore) ListRateHistory(ctx context.Context, currency string, from time.Time, to time.Time) ([]models.RateHistoryPoint, error) {
 	panic("unused")
 }

@@ -1,12 +1,14 @@
 package app
 
 import (
+	"errors"
 	"net/http"
 	"sort"
 	"time"
 
 	"github.com/justcipunz/rate-notifier-backend/internal/httpx"
 	"github.com/justcipunz/rate-notifier-backend/internal/models"
+	"github.com/justcipunz/rate-notifier-backend/internal/storage"
 )
 
 const weeklyHistoryDays = 7
@@ -67,12 +69,22 @@ func (s *APIServer) handleRateHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	today := startOfUTCDay(time.Now())
-	start := today.AddDate(0, 0, -(weeklyHistoryDays - 1))
-	to := today.AddDate(0, 0, 1).Add(-time.Nanosecond)
-
 	series := make([]models.RateHistorySeries, 0, len(supportedCurrencies))
 	for _, currency := range supportedCurrencies {
+		latest, err := s.store.GetLatestRateHistoryEffectiveAt(r.Context(), currency)
+		if err != nil {
+			if errors.Is(err, storage.ErrNotFound) {
+				continue
+			}
+			s.logInternal("failed to load latest history point: currency=%s error=%v", currency, err)
+			httpx.WriteError(w, http.StatusInternalServerError, "internal_error", messageInternalError)
+			return
+		}
+
+		latestDay := startOfUTCDay(latest)
+		start := latestDay.AddDate(0, 0, -(weeklyHistoryDays - 1))
+		to := latestDay.AddDate(0, 0, 1).Add(-time.Nanosecond)
+
 		raw, err := s.store.ListRateHistory(r.Context(), currency, start, to)
 		if err != nil {
 			s.logInternal("failed to load weekly history: currency=%s error=%v", currency, err)

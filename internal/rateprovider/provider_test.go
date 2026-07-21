@@ -17,6 +17,7 @@ func TestProviderFetch_NormalizesValuePreviousAndDates(t *testing.T) {
 			"PreviousDate": "2026-07-18T00:00:00Z",
 			"Valute": {
 				"USD": {"CharCode":"USD","Name":"US Dollar","Nominal":2,"Value":10,"Previous":8},
+				"EUR": {"CharCode":"EUR","Name":"Euro","Nominal":1,"Value":11,"Previous":10},
 				"CNY": {"CharCode":"CNY","Name":"Chinese Yuan","Nominal":10,"Value":126.7,"Previous":125.1}
 			}
 		}`)
@@ -29,8 +30,8 @@ func TestProviderFetch_NormalizesValuePreviousAndDates(t *testing.T) {
 		t.Fatalf("Fetch returned error: %v", err)
 	}
 
-	if len(rates) != 2 {
-		t.Fatalf("expected 2 rates, got %d", len(rates))
+	if len(rates) != 3 {
+		t.Fatalf("expected 3 rates, got %d", len(rates))
 	}
 
 	if rates[0].Currency != "USD" {
@@ -51,14 +52,14 @@ func TestProviderFetch_NormalizesValuePreviousAndDates(t *testing.T) {
 		t.Fatalf("unexpected previous effective date: %v", rates[0].PreviousEffectiveAt)
 	}
 
-	if rates[1].Currency != "CNY" {
-		t.Fatalf("unexpected currency: %s", rates[1].Currency)
+	if rates[2].Currency != "CNY" {
+		t.Fatalf("unexpected currency: %s", rates[2].Currency)
 	}
-	if math.Abs(rates[1].Value-12.67) > 0.0001 {
-		t.Fatalf("unexpected CNY value: %v", rates[1].Value)
+	if math.Abs(rates[2].Value-12.67) > 0.0001 {
+		t.Fatalf("unexpected CNY value: %v", rates[2].Value)
 	}
-	if math.Abs(rates[1].PreviousValue-12.51) > 0.0001 {
-		t.Fatalf("unexpected CNY previous: %v", rates[1].PreviousValue)
+	if math.Abs(rates[2].PreviousValue-12.51) > 0.0001 {
+		t.Fatalf("unexpected CNY previous: %v", rates[2].PreviousValue)
 	}
 }
 
@@ -81,7 +82,7 @@ func TestProviderFetch_ReturnsErrorOnZeroNominal(t *testing.T) {
 	}
 }
 
-func TestProviderFetch_IgnoresMissingCurrency(t *testing.T) {
+func TestProviderFetch_ReturnsErrorOnMissingCurrency(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprint(w, `{
 			"Date": "2026-07-21T00:00:00Z",
@@ -94,16 +95,9 @@ func TestProviderFetch_IgnoresMissingCurrency(t *testing.T) {
 	defer server.Close()
 
 	provider := New(server.URL, 0)
-	rates, err := provider.Fetch(context.Background())
-	if err != nil {
-		t.Fatalf("Fetch returned error: %v", err)
-	}
-
-	if len(rates) != 1 {
-		t.Fatalf("expected 1 rate, got %d", len(rates))
-	}
-	if rates[0].Currency != "USD" {
-		t.Fatalf("unexpected currency: %s", rates[0].Currency)
+	_, err := provider.Fetch(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 

@@ -13,12 +13,17 @@ import (
 	"time"
 
 	"github.com/justcipunz/rate-notifier-backend/internal/models"
+	"github.com/justcipunz/rate-notifier-backend/internal/storage"
 )
 
 type fakeRatesStore struct {
-	rates      []models.Rate
-	history    map[string][]models.RateHistoryPoint
-	historyErr error
+	rates       []models.Rate
+	history     map[string][]models.RateHistoryPoint
+	historyErr  error
+	latest      map[string]time.Time
+	latestErr   error
+	historyFrom map[string]time.Time
+	historyTo   map[string]time.Time
 }
 
 func (f *fakeRatesStore) CreateUser(ctx context.Context, email, passwordHash string) (models.User, error) {
@@ -37,10 +42,29 @@ func (f *fakeRatesStore) ListRates(ctx context.Context) ([]models.Rate, error) {
 	return f.rates, nil
 }
 
+func (f *fakeRatesStore) GetLatestRateHistoryEffectiveAt(ctx context.Context, currency string) (time.Time, error) {
+	if f.latestErr != nil {
+		return time.Time{}, f.latestErr
+	}
+	value, ok := f.latest[currency]
+	if !ok {
+		return time.Time{}, storage.ErrNotFound
+	}
+	return value, nil
+}
+
 func (f *fakeRatesStore) ListRateHistory(ctx context.Context, currency string, from time.Time, to time.Time) ([]models.RateHistoryPoint, error) {
 	if f.historyErr != nil {
 		return nil, f.historyErr
 	}
+	if f.historyFrom == nil {
+		f.historyFrom = make(map[string]time.Time)
+	}
+	if f.historyTo == nil {
+		f.historyTo = make(map[string]time.Time)
+	}
+	f.historyFrom[currency] = from
+	f.historyTo[currency] = to
 	return f.history[currency], nil
 }
 
@@ -249,6 +273,11 @@ func TestBuildRateHistorySeriesCalculatesTotals(t *testing.T) {
 func TestHandleRateHistoryReturnsSeriesInFixedCurrencyOrder(t *testing.T) {
 	start := startOfUTCDay(time.Now()).AddDate(0, 0, -(weeklyHistoryDays - 1))
 	store := &fakeRatesStore{
+		latest: map[string]time.Time{
+			"USD": start.AddDate(0, 0, weeklyHistoryDays-1),
+			"EUR": start.AddDate(0, 0, weeklyHistoryDays-1),
+			"CNY": start.AddDate(0, 0, weeklyHistoryDays-1),
+		},
 		history: map[string][]models.RateHistoryPoint{
 			"USD": {{Value: 90, EffectiveAt: start}},
 			"EUR": {{Value: 100, EffectiveAt: start}},
@@ -288,6 +317,53 @@ func TestHandleRateHistoryReturnsSeriesInFixedCurrencyOrder(t *testing.T) {
 	}
 }
 
+func TestHandleRateHistoryBuildsRangeFromLatestEffectiveDate(t *testing.T) {
+	latest := time.Date(2026, 7, 27, 12, 0, 0, 0, time.UTC)
+	expectedStart := time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC)
+	store := &fakeRatesStore{
+		latest: map[string]time.Time{
+			"USD": latest,
+		},
+		history: map[string][]models.RateHistoryPoint{
+			"USD": {
+				{Value: 90, EffectiveAt: expectedStart},
+				{Value: 91.25, EffectiveAt: latest},
+			},
+		},
+	}
+	server := &APIServer{
+		store:  store,
+		logger: log.New(io.Discard, "", 0),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/rates/history", nil)
+	rr := httptest.NewRecorder()
+
+	server.handleRateHistory(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d", rr.Code)
+	}
+	if !store.historyFrom["USD"].Equal(expectedStart) {
+		t.Fatalf("from = %v, want %v", store.historyFrom["USD"], expectedStart)
+	}
+	expectedTo := time.Date(2026, 7, 27, 23, 59, 59, int(time.Second-time.Nanosecond), time.UTC)
+	if !store.historyTo["USD"].Equal(expectedTo) {
+		t.Fatalf("to = %v, want %v", store.historyTo["USD"], expectedTo)
+	}
+
+	var resp models.RateHistoryResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(resp.Series) != 1 {
+		t.Fatalf("unexpected series count: %d", len(resp.Series))
+	}
+	if resp.Series[0].CurrentValue != 91.25 {
+		t.Fatalf("current value = %v, want 91.25", resp.Series[0].CurrentValue)
+	}
+}
+
 func TestHandleRateHistoryRejectsUnsupportedMethod(t *testing.T) {
 	server := &APIServer{
 		store:  &fakeRatesStore{},
@@ -306,7 +382,12 @@ func TestHandleRateHistoryRejectsUnsupportedMethod(t *testing.T) {
 
 func TestHandleRateHistoryReturnsInternalErrorOnStoreFailure(t *testing.T) {
 	server := &APIServer{
-		store:  &fakeRatesStore{historyErr: errors.New("db failed")},
+		store: &fakeRatesStore{
+			latest: map[string]time.Time{
+				"USD": time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC),
+			},
+			historyErr: errors.New("db failed"),
+		},
 		logger: log.New(io.Discard, "", 0),
 	}
 
@@ -347,6 +428,9 @@ func TestHandleRateHistoryReturnsEmptySeriesWhenHistoryMissing(t *testing.T) {
 func TestServeMuxRoutesRateHistorySeparatelyFromRates(t *testing.T) {
 	start := startOfUTCDay(time.Now()).AddDate(0, 0, -(weeklyHistoryDays - 1))
 	store := &fakeRatesStore{
+		latest: map[string]time.Time{
+			"USD": start.AddDate(0, 0, weeklyHistoryDays-1),
+		},
 		history: map[string][]models.RateHistoryPoint{
 			"USD": {{Value: 90, EffectiveAt: start}},
 		},
